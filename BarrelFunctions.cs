@@ -160,25 +160,44 @@ namespace Ocelot.BlueCrystalCooking.functions
                         var ownerPlayer = UnturnedPlayer.FromCSteamID(new CSteamID(ownerBarricade));
 
                         // Only one of each chemical (10103/10104/10105) may go into a barrel. Adding a
-                        // duplicate triggers a violent reaction: play effect 45 at the barrel and kill
-                        // the player who placed it. The offending ingredient is consumed in the blast.
+                        // duplicate triggers a violent reaction: effect 45 at the barrel, the barrel
+                        // breaks, the offending ingredient is consumed, and the placer is killed.
+                        //
+                        // The reaction is DEFERRED so the normal deploy + equipment.use() flow finishes
+                        // consuming the item first. Killing synchronously inside the deploy hook clears
+                        // the player's equipment before use() runs, so removeItem is skipped and the
+                        // chemical is left in the inventory (and ends up on the corpse).
                         if (barrelObj.ingredients.Contains(barricade.asset.id))
                         {
-                            TriggerEffect(DuplicateIngredientEffectId, barrelDrop.model.position);
                             if (ownerPlayer != null)
                             {
                                 UnturnedChat.Say(ownerPlayer, BlueCrystalCookingPlugin.Instance.Translate("duplicate_ingredient"), UnityEngine.Color.white);
                             }
-                            KillPlacer(ownerPlayer);
+
+                            Vector3 barrelPos = barrelDrop.model.position;
+                            Transform barrelModel = barrelDrop.model;
+                            ushort ingredientId = barricade.asset.id;
 
                             BlueCrystalCookingPlugin.Instance.Wait(0.2f, () =>
                             {
-                                BarricadeDrop ingredientDrop = BlueCrystalCookingPlugin.Instance.FindDropNear(pos, barricade.asset.id);
+                                // Effect first, while the barrel position is still meaningful.
+                                TriggerEffect(DuplicateIngredientEffectId, barrelPos);
+
+                                // The barrel breaks in the explosion.
+                                DestroyBarricadeByModel(barrelModel);
+                                BlueCrystalCookingPlugin.Instance.placedBarrelsTransformsIngredients.Remove(barrelModel);
+
+                                // Destroy the spawned chemical barricade (the one that caused the reaction).
+                                BarricadeDrop ingredientDrop = BlueCrystalCookingPlugin.Instance.FindDropNear(pos, ingredientId);
                                 if (ingredientDrop != null
                                     && BarricadeManager.tryGetRegion(ingredientDrop.model, out byte xi, out byte yi, out ushort pi, out BarricadeRegion _))
                                 {
                                     BarricadeManager.destroyBarricade(ingredientDrop, xi, yi, pi);
                                 }
+
+                                // By now equipment.use() has consumed the item, so the kill won't leave
+                                // a ghost chemical behind in the corpse inventory.
+                                KillPlacer(ownerPlayer);
                             });
                             return;
                         }
@@ -280,6 +299,20 @@ namespace Ocelot.BlueCrystalCooking.functions
             // 255 damage guarantees a kill regardless of max health. BURNING fits the reactive
             // chemical-explosion flavour; the server is credited as the killer.
             player.Player.life.askDamage(255, Vector3.up, EDeathCause.BURNING, ELimb.SPINE, Provider.server, out EPlayerKill _);
+        }
+
+
+        private static void DestroyBarricadeByModel(Transform model)
+        {
+            if (model == null || !model.gameObject.activeInHierarchy)
+                return;
+
+            BarricadeDrop drop = BarricadeManager.FindBarricadeByRootTransform(model);
+            if (drop != null
+                && BarricadeManager.tryGetRegion(model, out byte x, out byte y, out ushort plant, out BarricadeRegion _))
+            {
+                BarricadeManager.destroyBarricade(drop, x, y, plant);
+            }
         }
     }
 }
