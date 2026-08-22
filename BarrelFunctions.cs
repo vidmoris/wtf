@@ -38,8 +38,7 @@ namespace Ocelot.BlueCrystalCooking.functions
             // 1. PUNCH FROZEN TRAY (METH BAG LOGIC)
             if (id == config.FrozenTrayId)
             {
-                int amount = GetBagAmount(config);
-                player.GiveItem(config.BlueCrystalBagId, (byte)amount);
+                player.GiveItem(config.BlueCrystalBagId, 1);
 
 
                 if (config.EnableBlueCrystalFreezeEffect)
@@ -48,7 +47,7 @@ namespace Ocelot.BlueCrystalCooking.functions
                 }
 
 
-                UnturnedChat.Say(player, BlueCrystalCookingPlugin.Instance.Translate("bluecrystalbags_obtained", amount), UnityEngine.Color.white);
+                UnturnedChat.Say(player, BlueCrystalCookingPlugin.Instance.Translate("bluecrystalbags_obtained"), UnityEngine.Color.white);
                 BarricadeManager.destroyBarricade(drop, x, y, plant);
                 return;
             }
@@ -63,7 +62,30 @@ namespace Ocelot.BlueCrystalCooking.functions
             }
 
 
-            // 3. BARREL STIR LOGIC (punches only; the point emote is reserved for picking things up)
+            // 3. POINT AT BARREL TO RETRIEVE THE CHEMICALS INSIDE (point only; punches stir)
+            if (!allowStir && id == config.BarrelObjectId)
+            {
+                if (!BlueCrystalCookingPlugin.Instance.placedBarrelsTransformsIngredients.TryGetValue(drop.model, out var barrelObj))
+                    return;
+
+                if (barrelObj.ingredients.Count == 0)
+                {
+                    UnturnedChat.Say(player, BlueCrystalCookingPlugin.Instance.Translate("barrel_empty"), UnityEngine.Color.white);
+                    return;
+                }
+
+                foreach (var ingredientId in barrelObj.ingredients)
+                {
+                    player.GiveItem(ingredientId, 1);
+                }
+                barrelObj.ingredients.Clear();
+                barrelObj.progress = 0;
+                UnturnedChat.Say(player, BlueCrystalCookingPlugin.Instance.Translate("chemicals_retrieved"), UnityEngine.Color.white);
+                return;
+            }
+
+
+            // 4. BARREL STIR LOGIC (punches only; the point emote is reserved for picking things up)
             if (allowStir && id == config.BarrelObjectId)
             {
                 if (!BlueCrystalCookingPlugin.Instance.placedBarrelsTransformsIngredients.TryGetValue(drop.model, out var barrelObj))
@@ -255,17 +277,6 @@ namespace Ocelot.BlueCrystalCooking.functions
             }
 
             return null;
-        }
-
-
-        private static int GetBagAmount(BlueCrystalCookingConfiguration config)
-        {
-            int min = config.BlueCrystalBagsAmountMin;
-            int max = config.BlueCrystalBagsAmountMax;
-            if (max < min) max = min;
-            // UnityEngine.Random.Range upper bound is exclusive for ints, so add 1 to include max.
-            int amount = UnityEngine.Random.Range(min, max + 1);
-            return amount < 1 ? 1 : amount;
         }
 
 
