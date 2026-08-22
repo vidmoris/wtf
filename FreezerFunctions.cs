@@ -84,14 +84,23 @@ namespace Ocelot.BlueCrystalCooking.functions
                 if (tray.freezingSeconds < config.BlueCrystalTrayFreezingTimeSecs)
                     continue;
 
-                if (!BarricadeManager.tryGetInfo(tray.transform, out byte x, out byte y, out ushort plant, out ushort index, out BarricadeRegion region))
+                if (!BarricadeManager.tryGetRegion(tray.transform, out byte x, out byte y, out ushort plant, out BarricadeRegion _))
                 {
                     // Fail-safe cleanup if the tray no longer exists.
                     BlueCrystalCookingPlugin.Instance.freezingTrays.Remove(tray);
                     continue;
                 }
 
-                BarricadeManager.destroyBarricade(region, x, y, plant, index);
+                // Resolve the drop via the modern API (tryGetInfo is obsolete) so we can use the
+                // non-obsolete destroyBarricade(drop, ...) overload.
+                BarricadeDrop trayDrop = BarricadeManager.FindBarricadeByRootTransform(tray.transform);
+                if (trayDrop == null)
+                {
+                    BlueCrystalCookingPlugin.Instance.freezingTrays.Remove(tray);
+                    continue;
+                }
+
+                BarricadeManager.destroyBarricade(trayDrop, x, y, plant);
 
                 ItemBarricadeAsset frozenTrayAsset = (ItemBarricadeAsset)Assets.find(EAssetType.ITEM, config.FrozenTrayId);
                 if (frozenTrayAsset != null)

@@ -2,7 +2,6 @@ using Rocket.Unturned.Player;
 using Rocket.Unturned.Chat;
 using SDG.Unturned;
 using Steamworks;
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
@@ -12,9 +11,6 @@ namespace Ocelot.BlueCrystalCooking.functions
 {
     public static class BarrelFunctions
     {
-        private static readonly Random _rng = new Random();
-
-
         public static void OnGestureChanged(UnturnedPlayer player, EPlayerGesture gesture)
         {
             if (player == null || player.Player == null)
@@ -26,15 +22,15 @@ namespace Ocelot.BlueCrystalCooking.functions
                 return;
 
             // A raycast hits a child collider, not the barricade's root model. Resolve the actual
-            // barricade drop via its root component so tryGetInfo can match the model transform exactly.
+            // barricade drop via its root component so tryGetRegion can match the model transform exactly.
             BarricadeDrop drop = BarricadeManager.FindBarricadeByRootTransform(raycastHit.transform);
             if (drop == null || drop.asset == null)
                 return;
 
             ushort id = drop.asset.id;
 
-            // tryGetInfo now reliably succeeds because we pass the drop's own root model transform.
-            BarricadeManager.tryGetInfo(drop.model, out byte x, out byte y, out ushort plant, out ushort index, out BarricadeRegion region);
+            // Resolve the region coordinates for the (non-obsolete) destroyBarricade(drop, x, y, plant) overload.
+            BarricadeManager.tryGetRegion(drop.model, out byte x, out byte y, out ushort plant, out BarricadeRegion _);
 
 
             // 1. PUNCH FROZEN TRAY (METH BAG LOGIC)
@@ -51,7 +47,7 @@ namespace Ocelot.BlueCrystalCooking.functions
 
 
                 UnturnedChat.Say(player, BlueCrystalCookingPlugin.Instance.Translate("bluecrystalbags_obtained", amount), UnityEngine.Color.white);
-                BarricadeManager.destroyBarricade(region, x, y, plant, index);
+                BarricadeManager.destroyBarricade(drop, x, y, plant);
                 return;
             }
 
@@ -60,7 +56,7 @@ namespace Ocelot.BlueCrystalCooking.functions
             if (IsPickupableIngredient(id, config))
             {
                 player.GiveItem(id, 1);
-                BarricadeManager.destroyBarricade(region, x, y, plant, index);
+                BarricadeManager.destroyBarricade(drop, x, y, plant);
                 return;
             }
 
@@ -171,9 +167,9 @@ namespace Ocelot.BlueCrystalCooking.functions
                         {
                             BarricadeDrop ingredientDrop = BlueCrystalCookingPlugin.Instance.FindDropNear(pos, barricade.asset.id);
                             if (ingredientDrop != null
-                                && BarricadeManager.tryGetInfo(ingredientDrop.model, out byte xi, out byte yi, out ushort pi, out ushort ii, out BarricadeRegion ri))
+                                && BarricadeManager.tryGetRegion(ingredientDrop.model, out byte xi, out byte yi, out ushort pi, out BarricadeRegion _))
                             {
-                                BarricadeManager.destroyBarricade(ri, xi, yi, pi, ii);
+                                BarricadeManager.destroyBarricade(ingredientDrop, xi, yi, pi);
                             }
                         });
                     }
@@ -192,7 +188,8 @@ namespace Ocelot.BlueCrystalCooking.functions
             int min = config.BlueCrystalBagsAmountMin;
             int max = config.BlueCrystalBagsAmountMax;
             if (max < min) max = min;
-            int amount = _rng.Next(min, max + 1);
+            // UnityEngine.Random.Range upper bound is exclusive for ints, so add 1 to include max.
+            int amount = UnityEngine.Random.Range(min, max + 1);
             return amount < 1 ? 1 : amount;
         }
 
