@@ -11,14 +11,18 @@ namespace Ocelot.BlueCrystalCooking.functions
 {
     public static class BarrelFunctions
     {
-        public static void OnGestureChanged(UnturnedPlayer player, EPlayerGesture gesture)
+        // Effect played and player killed when a duplicate chemical is dropped into a barrel.
+        private const ushort DuplicateIngredientEffectId = 45;
+
+
+        public static void OnGestureChanged(UnturnedPlayer player, EPlayerGesture gesture, bool allowStir)
         {
             if (player == null || player.Player == null)
                 return;
 
             var config = BlueCrystalCookingPlugin.Instance.Configuration.Instance;
 
-            // Resolve the barricade the player is punching. A thin forward ray (like vanilla) is
+            // Resolve the barricade the player is aiming at. A thin forward ray (like vanilla) is
             // tried first for close range, then a forgiving sphere sweep so small/thin chemicals
             // are still caught when the server-side aim is a frame behind or slightly off-centre.
             BarricadeDrop drop = ResolveAimBarricade(player);
@@ -59,8 +63,8 @@ namespace Ocelot.BlueCrystalCooking.functions
             }
 
 
-            // 3. BARREL STIR LOGIC
-            if (id == config.BarrelObjectId)
+            // 3. BARREL STIR LOGIC (punches only; the point emote is reserved for picking things up)
+            if (allowStir && id == config.BarrelObjectId)
             {
                 if (!BlueCrystalCookingPlugin.Instance.placedBarrelsTransformsIngredients.TryGetValue(drop.model, out var barrelObj))
                     return;
@@ -154,6 +158,31 @@ namespace Ocelot.BlueCrystalCooking.functions
                     if (BlueCrystalCookingPlugin.Instance.placedBarrelsTransformsIngredients.TryGetValue(barrelDrop.model, out var barrelObj))
                     {
                         var ownerPlayer = UnturnedPlayer.FromCSteamID(new CSteamID(ownerBarricade));
+
+                        // Only one of each chemical (10103/10104/10105) may go into a barrel. Adding a
+                        // duplicate triggers a violent reaction: play effect 45 at the barrel and kill
+                        // the player who placed it. The offending ingredient is consumed in the blast.
+                        if (barrelObj.ingredients.Contains(barricade.asset.id))
+                        {
+                            TriggerEffect(DuplicateIngredientEffectId, barrelDrop.model.position);
+                            if (ownerPlayer != null)
+                            {
+                                UnturnedChat.Say(ownerPlayer, BlueCrystalCookingPlugin.Instance.Translate("duplicate_ingredient"), UnityEngine.Color.white);
+                            }
+                            KillPlacer(ownerPlayer);
+
+                            BlueCrystalCookingPlugin.Instance.Wait(0.2f, () =>
+                            {
+                                BarricadeDrop ingredientDrop = BlueCrystalCookingPlugin.Instance.FindDropNear(pos, barricade.asset.id);
+                                if (ingredientDrop != null
+                                    && BarricadeManager.tryGetRegion(ingredientDrop.model, out byte xi, out byte yi, out ushort pi, out BarricadeRegion _))
+                                {
+                                    BarricadeManager.destroyBarricade(ingredientDrop, xi, yi, pi);
+                                }
+                            });
+                            return;
+                        }
+
                         if (ownerPlayer != null)
                         {
                             UnturnedChat.Say(ownerPlayer, BlueCrystalCookingPlugin.Instance.Translate("ingredient_added", asset.FriendlyName), UnityEngine.Color.white);
@@ -240,6 +269,17 @@ namespace Ocelot.BlueCrystalCooking.functions
                 };
                 EffectManager.triggerEffect(effectParams);
             }
+        }
+
+
+        private static void KillPlacer(UnturnedPlayer player)
+        {
+            if (player == null || player.Player == null || player.Player.life == null)
+                return;
+
+            // 255 damage guarantees a kill regardless of max health. BURNING fits the reactive
+            // chemical-explosion flavour; the server is credited as the killer.
+            player.Player.life.askDamage(255, Vector3.up, EDeathCause.BURNING, ELimb.SPINE, Provider.server, out EPlayerKill _);
         }
     }
 }

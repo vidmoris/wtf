@@ -83,13 +83,22 @@ namespace Ocelot.BlueCrystalCooking
 
         private void OnGestureChanged(PlayerAnimator animator, EPlayerGesture gesture)
         {
+            // Punches stir barrels and pick things up; the point emote only picks things up (so you
+            // can't accidentally stir a barrel by pointing at it).
             if (gesture == EPlayerGesture.PUNCH_LEFT || gesture == EPlayerGesture.PUNCH_RIGHT)
             {
                 var player = UnturnedPlayer.FromPlayer(animator.player);
                 if (player != null)
                 {
-                    // FIXED: Now we only call one consolidated function to prevent ghost-hit errors
-                    BarrelFunctions.OnGestureChanged(player, gesture);
+                    BarrelFunctions.OnGestureChanged(player, gesture, allowStir: true);
+                }
+            }
+            else if (gesture == EPlayerGesture.POINT)
+            {
+                var player = UnturnedPlayer.FromPlayer(animator.player);
+                if (player != null)
+                {
+                    BarrelFunctions.OnGestureChanged(player, gesture, allowStir: false);
                 }
             }
         }
@@ -168,7 +177,8 @@ namespace Ocelot.BlueCrystalCooking
             {"not_enough_ingredients", "There are <color=#ff3c19>not enough ingredients</color> in the barrel to stir them into blue crystal." },
             {"ingredient_added", "You have <color=#75ff19>added {0}</color> to the barrel." },
             {"stir_successful", "You have <color=#75ff19>successfully mixed</color> the ingredients into a tray filled with <color=#1969ff>liquid blue crystal</color>." },
-            {"bluecrystalbags_obtained", "You have <color=#75ff19>successfully obtained {0} bags</color> filled with <color=#1969ff>blue crystal</color>." }
+            {"bluecrystalbags_obtained", "You have <color=#75ff19>successfully obtained {0} bags</color> filled with <color=#1969ff>blue crystal</color>." },
+            {"duplicate_ingredient", "The barrel <color=#ff3c19>rejected the duplicate chemical</color> and <color=#ff3c19>violently reacted</color>!" }
         };
 
 
