@@ -50,7 +50,12 @@ namespace Ocelot.BlueCrystalCooking.functions
             foreach (var tray in BlueCrystalCookingPlugin.Instance.freezingTrays.ToList())
             {
                 // Cleanup if the tray was punched and picked up before it finished freezing.
-                if (tray.transform == null)
+                // Destroyed barricades either get Destroy()'d (transform becomes fake-null) or, for
+                // pooling-eligible assets, SetActive(false)'d and pushed to a pool (transform stays
+                // alive but inactive). The activeInHierarchy check catches the pooled case, which a
+                // plain transform-null check misses and which would otherwise spawn a frozen tray from
+                // a tray the player already stole.
+                if (tray.transform == null || !tray.transform.gameObject.activeInHierarchy)
                 {
                     BlueCrystalCookingPlugin.Instance.freezingTrays.Remove(tray);
                     continue;

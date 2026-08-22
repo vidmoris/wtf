@@ -18,12 +18,10 @@ namespace Ocelot.BlueCrystalCooking.functions
 
             var config = BlueCrystalCookingPlugin.Instance.Configuration.Instance;
 
-            if (!Physics.Raycast(player.Player.look.aim.position, player.Player.look.aim.forward, out RaycastHit raycastHit, 2f, RayMasks.BARRICADE))
-                return;
-
-            // A raycast hits a child collider, not the barricade's root model. Resolve the actual
-            // barricade drop via its root component so tryGetRegion can match the model transform exactly.
-            BarricadeDrop drop = BarricadeManager.FindBarricadeByRootTransform(raycastHit.transform);
+            // Resolve the barricade the player is punching. A thin forward ray (like vanilla) is
+            // tried first for close range, then a forgiving sphere sweep so small/thin chemicals
+            // are still caught when the server-side aim is a frame behind or slightly off-centre.
+            BarricadeDrop drop = ResolveAimBarricade(player);
             if (drop == null || drop.asset == null)
                 return;
 
@@ -180,6 +178,35 @@ namespace Ocelot.BlueCrystalCooking.functions
 
         public static void BarricadeDamaged(Transform barricadeTransform, ushort pendingTotalDamage)
         {
+        }
+
+
+        private static BarricadeDrop ResolveAimBarricade(UnturnedPlayer player)
+        {
+            Ray ray = new Ray(player.Player.look.aim.position, player.Player.look.aim.forward);
+
+            // Thin ray first: matches vanilla punch range and handles close targets precisely.
+            if (Physics.Raycast(ray, out RaycastHit hit, 2.5f, RayMasks.BARRICADE))
+            {
+                BarricadeDrop drop = BarricadeManager.FindBarricadeByRootTransform(hit.transform);
+                if (drop != null)
+                    return drop;
+            }
+
+            // Forgiving sphere sweep: catches small/thin colliders (chemicals) the centre ray grazes
+            // past, and tolerates a frame of aim desync between client and server.
+            RaycastHit[] hits = Physics.SphereCastAll(ray, 0.5f, 2.5f, RayMasks.BARRICADE);
+            if (hits != null && hits.Length > 0)
+            {
+                foreach (RaycastHit h in hits.OrderBy(h => h.distance))
+                {
+                    BarricadeDrop drop = BarricadeManager.FindBarricadeByRootTransform(h.transform);
+                    if (drop != null)
+                        return drop;
+                }
+            }
+
+            return null;
         }
 
 
