@@ -1,5 +1,4 @@
 using Rocket.Unturned.Player;
-using Rocket.Unturned.Chat;
 using SDG.Unturned;
 using Steamworks;
 using System.Collections.Generic;
@@ -46,8 +45,6 @@ namespace Ocelot.BlueCrystalCooking.functions
                     TriggerEffect(config.BlueCrystalFreezeEffectId, drop.model.position);
                 }
 
-
-                UnturnedChat.Say(player, BlueCrystalCookingPlugin.Instance.Translate("bluecrystalbags_obtained"), UnityEngine.Color.white);
                 BarricadeManager.destroyBarricade(drop, x, y, plant);
                 return;
             }
@@ -69,10 +66,7 @@ namespace Ocelot.BlueCrystalCooking.functions
                     return;
 
                 if (barrelObj.ingredients.Count == 0)
-                {
-                    UnturnedChat.Say(player, BlueCrystalCookingPlugin.Instance.Translate("barrel_empty"), UnityEngine.Color.white);
                     return;
-                }
 
                 foreach (var ingredientId in barrelObj.ingredients)
                 {
@@ -80,7 +74,6 @@ namespace Ocelot.BlueCrystalCooking.functions
                 }
                 barrelObj.ingredients.Clear();
                 barrelObj.progress = 0;
-                UnturnedChat.Say(player, BlueCrystalCookingPlugin.Instance.Translate("chemicals_retrieved"), UnityEngine.Color.white);
                 return;
             }
 
@@ -108,7 +101,6 @@ namespace Ocelot.BlueCrystalCooking.functions
                 }
                 else
                 {
-                    UnturnedChat.Say(player, BlueCrystalCookingPlugin.Instance.Translate("not_enough_ingredients"), UnityEngine.Color.white);
                     return;
                 }
 
@@ -119,9 +111,6 @@ namespace Ocelot.BlueCrystalCooking.functions
                     {
                         barrelObj.ingredients.Remove(ingredientId);
                     }
-
-
-                    UnturnedChat.Say(player, BlueCrystalCookingPlugin.Instance.Translate("stir_successful"), UnityEngine.Color.white);
 
 
                     ItemBarricadeAsset trayAsset = (ItemBarricadeAsset)Assets.find(EAssetType.ITEM, config.BlueCrystalTrayId);
@@ -191,11 +180,6 @@ namespace Ocelot.BlueCrystalCooking.functions
                         // chemical is left in the inventory (and ends up on the corpse).
                         if (barrelObj.ingredients.Contains(barricade.asset.id))
                         {
-                            if (ownerPlayer != null)
-                            {
-                                UnturnedChat.Say(ownerPlayer, BlueCrystalCookingPlugin.Instance.Translate("duplicate_ingredient"), UnityEngine.Color.white);
-                            }
-
                             Vector3 barrelPos = barrelDrop.model.position;
                             Transform barrelModel = barrelDrop.model;
                             ushort ingredientId = barricade.asset.id;
@@ -224,10 +208,6 @@ namespace Ocelot.BlueCrystalCooking.functions
                             return;
                         }
 
-                        if (ownerPlayer != null)
-                        {
-                            UnturnedChat.Say(ownerPlayer, BlueCrystalCookingPlugin.Instance.Translate("ingredient_added", asset.FriendlyName), UnityEngine.Color.white);
-                        }
                         barrelObj.ingredients.Add(barricade.asset.id);
 
 

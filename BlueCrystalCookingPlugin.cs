@@ -172,16 +172,9 @@ namespace Ocelot.BlueCrystalCooking
         }
 
 
-        public override TranslationList DefaultTranslations => new TranslationList
-        {
-            {"not_enough_ingredients", "There are <color=#ff3c19>not enough ingredients</color> in the barrel to stir them into blue crystal." },
-            {"ingredient_added", "You have <color=#75ff19>added {0}</color> to the barrel." },
-            {"stir_successful", "You have <color=#75ff19>successfully mixed</color> the ingredients into a tray filled with <color=#1969ff>liquid blue crystal</color>." },
-            {"bluecrystalbags_obtained", "You have <color=#75ff19>successfully obtained a bag</color> filled with <color=#1969ff>blue crystal</color>." },
-            {"duplicate_ingredient", "The barrel <color=#ff3c19>rejected the duplicate chemical</color> and <color=#ff3c19>violently reacted</color>!" },
-            {"barrel_empty", "The barrel is <color=#ff3c19>empty</color>." },
-            {"chemicals_retrieved", "You have <color=#75ff19>retrieved the chemicals</color> from the barrel." }
-        };
+        // Chat messages were removed; the translation list is kept empty because RocketPlugin
+        // requires the DefaultTranslations override.
+        public override TranslationList DefaultTranslations => new TranslationList();
 
 
         private void Update()
